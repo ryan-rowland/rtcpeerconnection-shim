@@ -3137,7 +3137,7 @@ describe('Edge shim', () => {
     it('throws an InvalidAccessError if the sender does not belong ' +
         'to the peerconnection', () => {
       const removeTrack = () => {
-        pc.removeTrack(new window.RTCRtpSender());
+        pc.removeTrack(new window.RTCRtpSender('audio'));
       };
       expect(removeTrack).to.throw(/not created by/)
           .that.has.property('name').that.equals('InvalidAccessError');
@@ -3147,7 +3147,7 @@ describe('Edge shim', () => {
         'closed already', () => {
       pc.close();
       const removeTrack = () => {
-        pc.removeTrack(new window.RTCRtpSender());
+        pc.removeTrack(new window.RTCRtpSender('audio'));
       };
       expect(removeTrack).to.throw()
           .that.has.property('name').that.equals('InvalidStateError');
