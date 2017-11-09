@@ -1644,6 +1644,21 @@ describe('Edge shim', () => {
       });
     });
 
+    describe('when called after addTransceiver', () => {
+      // I have questions... https://github.com/w3c/webrtc-pc/issues/1662
+      it('the generated SDP should contain an m-line', (done) => {
+        pc.addTransceiver('audio');
+        pc.createOffer()
+        .then((offer) => {
+          const sections = SDPUtils.splitSections(offer.sdp);
+          expect(sections.length).to.equal(2);
+          expect(SDPUtils.getKind(sections[1])).to.equal('audio');
+          // TODO: a=msid:- something
+          done();
+        });
+      });
+    });
+
     describe('when called subsequently', () => {
       let clock;
       beforeEach(() => {
