@@ -380,10 +380,12 @@ describe('Edge shim', () => {
       beforeEach(() => {
         sinon.spy(window.RTCIceTransport.prototype, 'start');
         sinon.spy(window.RTCDtlsTransport.prototype, 'start');
+        sinon.spy(window.RTCRtpSender.prototype, 'setTransport');
       });
       afterEach(() => {
         window.RTCIceTransport.prototype.start.restore();
         window.RTCDtlsTransport.prototype.start.restore();
+        window.RTCRtpSender.prototype.setTransport.restore();
       });
 
       const sdp = SDP_BOILERPLATE + MINIMAL_AUDIO_MLINE;
@@ -433,6 +435,26 @@ describe('Edge shim', () => {
               ])
             })
           );
+          done();
+        });
+      });
+
+      it('sets the RTPSender transport', (done) => {
+        pc.setRemoteDescription({type: 'offer', sdp: sdp})
+        .then(() => {
+          return navigator.mediaDevices.getUserMedia({audio: true});
+        })
+        .then((stream) => {
+          pc.addTrack(stream.getAudioTracks()[0], stream);
+          return pc.createAnswer();
+        })
+        .then((answer) => {
+          return pc.setLocalDescription(answer);
+        })
+        .then(() => {
+          const sender = pc.getSenders()[0];
+          expect(sender.setTransport).to.have.been.calledOnce();
+          expect(sender.transport).not.to.equal(null);
           done();
         });
       });
@@ -713,6 +735,8 @@ describe('Edge shim', () => {
           // and the second one needs to be disposed.
           return pc.setRemoteDescription({type: 'offer', sdp: sdp});
         })
+        .then(() => pc.createAnswer())
+        .then((answer) => pc.setLocalDescription(answer))
         .then(() => {
           const senders = pc.getSenders();
           // the second ice transport should have been disposed.
@@ -1027,12 +1051,9 @@ describe('Edge shim', () => {
       });
     });
 
-    describe('with type=answer', () => {
+    describe('with an answer', () => {
       beforeEach(() => {
         sinon.spy(window.RTCIceTransport.prototype, 'setRemoteCandidates');
-        return pc.createOffer({offerToReceiveAudio: true,
-            offerToReceiveVideo: true})
-          .then(offer => pc.setLocalDescription(offer));
       });
       afterEach(() => {
         window.RTCIceTransport.prototype.setRemoteCandidates.restore();
@@ -1059,7 +1080,9 @@ describe('Edge shim', () => {
             'a=ssrc:1002 cname:some\r\n' +
             'a=candidate:702786350 1 udp 41819902 8.8.8.8 60769 typ host\r\n' +
             'a=end-of-candidates\r\n';
-        pc.setRemoteDescription({type: 'answer', sdp})
+        pc.createOffer({offerToReceiveAudio: true, offerToReceiveVideo: true})
+        .then(offer => pc.setLocalDescription(offer))
+        .then(() => pc.setRemoteDescription({type: 'answer', sdp}))
         .then(() => {
           const receiver = pc.getReceivers()[0];
           const iceTransport = receiver.transport.transport;
@@ -3391,13 +3414,17 @@ describe('Edge shim', () => {
 
   describe('getStats', () => {
     let pc;
+    const sdp = SDP_BOILERPLATE + MINIMAL_AUDIO_MLINE;
     beforeEach((done) => {
       pc = new RTCPeerConnection();
       navigator.mediaDevices.getUserMedia({audio: true})
       .then((stream) => {
         pc.addTrack(stream.getAudioTracks()[0], stream);
-        done();
-      });
+        return pc.setRemoteDescription({type: 'offer', sdp});
+      })
+      .then(() => pc.createAnswer())
+      .then(answer => pc.setLocalDescription(answer))
+      .then(() => done());
     });
     afterEach(() => {
       pc.close();
@@ -3534,6 +3561,25 @@ describe('Edge shim', () => {
 
       expect(stub).to.have.been.calledOnce();
       expect(pc.iceConnectionState).to.equal('disconnected');
+    });
+  });
+
+  describe('addTrack', () => {
+    let pc;
+    let audioTrack;
+    beforeEach((done) => {
+      pc = new RTCPeerConnection();
+      navigator.mediaDevices.getUserMedia({audio: true})
+      .then((stream) => {
+        audioTrack = stream.getAudioTracks()[0];
+        done();
+      });
+    });
+
+    it('returns a sender whose transport is not set', () => {
+      const sender = pc.addTrack(audioTrack);
+      expect(sender).to.be.an.instanceOf(window.RTCRtpSender);
+      expect(sender.transport).to.equal(null);
     });
   });
 
