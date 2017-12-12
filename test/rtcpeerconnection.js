@@ -1124,6 +1124,17 @@ describe('Edge shim', () => {
         done();
       });
     });
+
+    it('creates an RTCRtpTransceiver for a rejected m-lines', (done) => {
+      const sdp = SDP_BOILERPLATE +
+          MINIMAL_AUDIO_MLINE.replace('m=audio 9', 'm=audio 0');
+      pc.setRemoteDescription({type: 'offer', sdp})
+      .then(() => {
+        const transceivers = pc.getTransceivers();
+        expect(transceivers).to.have.length(1);
+        done();
+      });
+    });
   });
 
   describe('createOffer', () => {

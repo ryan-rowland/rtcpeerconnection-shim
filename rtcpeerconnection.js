@@ -996,7 +996,10 @@ module.exports = function(window, edgeVersion) {
               pc.transceivers[0].dtlsTransport);
         }
       }
-      if (description.type === 'offer' && !rejected) {
+      if (description.type === 'offer' && rejected) {
+        transceiver = pc.transceivers[sdpMLineIndex] ||
+            pc._createTransceiver(kind);
+      } else if (description.type === 'offer' && !rejected) {
         transceiver = pc.transceivers[sdpMLineIndex] ||
             pc._createTransceiver(kind);
         transceiver.mid = mid;
